@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
 import re
-
 import discord
-from discord.ext import commands
+
 import yt_dlp
 import urllib
 import asyncio
@@ -11,6 +9,8 @@ import os
 import shutil
 import sys
 import subprocess as sp
+
+from discord.ext import commands
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,8 +23,8 @@ BOT_REPORT_DL_ERROR = os.getenv('BOT_REPORT_DL_ERROR', '0').lower() in ('true', 
 try:
     COLOR = int(os.getenv('BOT_COLOR', 'ff0000'), 16)
 except ValueError:
-    print('the BOT_COLOR in .env is not a valid hex color')
-    print('using default color ff0000')
+    print('The BOT_COLOR in .env is not a valid hex color')
+    print('Using default color ff0000')
     COLOR = 0xff0000
 
 bot = commands.Bot(command_prefix=PREFIX, intents=discord.Intents(voice_states=True, guilds=True, guild_messages=True, message_content=True))
@@ -32,7 +32,7 @@ queues = {} # {server_id: 'queue': [(vid_file, info), ...], 'loop': bool}
 
 def main():
     if TOKEN is None:
-        return ("no token provided. Please create a .env file containing the token.\n"
+        return ("No token provided. Please create a .env file containing the token.\n"
                 "for more information view the README.md")
     try: bot.run(TOKEN)
     except discord.PrivilegedIntentsRequired as error:
@@ -43,7 +43,7 @@ async def queue(ctx: commands.Context, *args):
     try: queue = queues[ctx.guild.id]['queue']
     except KeyError: queue = None
     if queue == None:
-        await ctx.send('the bot isn\'t playing anything')
+        await ctx.send('The bot isn\'t playing anything')
     else:
         title_str = lambda val: '‣ %s\n\n' % val[1] if val[0] == 0 else '**%2d:** %s\n' % val
         queue_str = ''.join(map(title_str, enumerate([i[1]["title"] for i in queue])))
@@ -138,11 +138,11 @@ async def loop(ctx: commands.Context, *args):
     try:
         loop = queues[ctx.guild.id]['loop']
     except KeyError:
-        await ctx.send('the bot isn\'t playing anything')
+        await ctx.send('The bot isn\'t playing anything')
         return
     queues[ctx.guild.id]['loop'] = not loop
 
-    await ctx.send('looping is now ' + ('on' if not loop else 'off'))
+    await ctx.send('Looping is now ' + ('on' if not loop else 'off'))
 
 def get_voice_client_from_channel_id(channel_id: int):
     for voice_client in bot.voice_clients:
@@ -174,11 +174,11 @@ async def safe_disconnect(connection):
 async def sense_checks(ctx: commands.Context, voice_state=None) -> bool:
     if voice_state is None: voice_state = ctx.author.voice
     if voice_state is None:
-        await ctx.send('you have to be in a voice channel to use this command')
+        await ctx.send('You have to be in a voice channel to use this command')
         return False
 
     if bot.user.id not in [member.id for member in ctx.author.voice.channel.members] and ctx.guild.id in queues.keys():
-        await ctx.send('you have to be in the same voice channel as the bot to use this command')
+        await ctx.send('You have to be in the same voice channel as the bot to use this command')
         return False
     return True
 
@@ -201,17 +201,17 @@ async def on_command_error(ctx: discord.ext.commands.Context, err: discord.ext.c
     # now we can handle command errors
     if isinstance(err, discord.ext.commands.errors.CommandNotFound):
         if BOT_REPORT_COMMAND_NOT_FOUND:
-            await ctx.send("command not recognized. To see available commands type {}help".format(PREFIX))
+            await ctx.send("Command not recognized. To see available commands type {}help".format(PREFIX))
         return
 
     # we ran out of handlable exceptions, re-start. type_ and value are None for these
-    sys.stderr.write(f'unhandled command error raised, {err=}')
+    sys.stderr.write(f'Unhandled command error raised, {err=}')
     sys.stderr.flush()
     sp.run(['./restart'])
 
 @bot.event
 async def on_ready():
-    print(f'logged in successfully as {bot.user.name}')
+    print(f'Logged in successfully as {bot.user.name}')
 async def notify_about_failure(ctx: commands.Context, err: yt_dlp.utils.DownloadError):
     if BOT_REPORT_DL_ERROR:
         # remove shell colors for discord message
@@ -219,9 +219,9 @@ async def notify_about_failure(ctx: commands.Context, err: yt_dlp.utils.Download
         if sanitized[0:5].lower() == "error":
             # if message starts with error, strip it to avoid being redundant
             sanitized = sanitized[5:].strip(" :")
-        await ctx.send('failed to download due to error: {}'.format(sanitized))
+        await ctx.send('Failed to download due to error: {}'.format(sanitized))
     else:
-        await ctx.send('sorry, failed to download this video')
+        await ctx.send('Sorry, failed to download this video')
     return
 
 if __name__ == '__main__':
