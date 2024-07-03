@@ -99,7 +99,9 @@ async def stop(ctx: commands.Context):
     if not await sense_checks(ctx):
         return
     voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
-    queues[server_id]['queue'] = []
+    for _ in range(len(queues[ctx.guild.id]['queue']) - 1):
+        queues[ctx.guild.id]['queue'].pop(0)
+    await ctx.send("Stopping...")
     voice_client.stop()
 
 @bot.command(name='pause', aliases=['ps'])
@@ -113,6 +115,7 @@ async def pause(ctx: commands.Context):
     if not await sense_checks(ctx):
         return
     voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
+    await ctx.send("Pausing...")
     voice_client.pause()
 
 @bot.command(name='resume', aliases=['r'])
@@ -126,6 +129,7 @@ async def resume(ctx: commands.Context):
     if not await sense_checks(ctx):
         return
     voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
+    await ctx.send("Resuming...")
     voice_client.resume()
 
 @bot.command(name='play', aliases=['p'])
@@ -158,8 +162,6 @@ async def play(ctx: commands.Context, *args):
             return
         
         if 'entries' in info:
-            for entry in info["entries"]:
-                print(entry["id"], entry["title"])
             info = info['entries'][0]
         # send link if it was a search, otherwise send title as sending link again would clutter chat with previews
         await ctx.send('Downloading ' + (f'https://youtu.be/{info["id"]}' if will_need_search else f'`{info["title"]}`'))
@@ -179,9 +181,34 @@ async def play(ctx: commands.Context, *args):
                 connection = get_voice_client_from_channel_id(voice_state.channel.id)
             connection.play(discord.FFmpegOpusAudio(path), after=lambda error=None, connection=connection, server_id=server_id:
                                                              after_track(error, connection, server_id))
+            embedVar = discord.Embed(color=COLOR)
+            embedVar.add_field(name='Now playing:', value=f"‣ {info["title"]}")
+            await ctx.send(embed=embedVar)
+
+@bot.command('delete', aliases=['d'])
+async def delete(ctx: commands.Context, *args):
+    if args[0].isdecimal() is False or int(args[0]) < 0 :
+        await ctx.send('Invalid index')
+        return
+    try: 
+        queue_length = len(queues[ctx.guild.id]['queue'])
+        if args[0].isdecimal() is False or int(args[0]) < 1 or int(args[0]) > queue_length:
+            await ctx.send('Invalid index')
+            return
+    except KeyError: 
+        queue_length = 0
+    if queue_length <= 0:
+        await ctx.send('The bot isn\'t playing anything')
+    if not await sense_checks(ctx):
+        return
+    title = queues[ctx.guild.id]['queue'][int(args[0])][1]["title"]
+    queues[ctx.guild.id]['queue'].pop(int(args[0]))
+
+    await ctx.send(f"Deleted element `{title}`")
+
 
 @bot.command('loop', aliases=['l'])
-async def loop(ctx: commands.Context, *args):
+async def loop(ctx: commands.Context):
     if not await sense_checks(ctx):
         return
     try:
