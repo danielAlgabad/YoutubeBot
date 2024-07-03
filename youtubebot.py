@@ -126,7 +126,7 @@ async def resume(ctx: commands.Context):
     if not await sense_checks(ctx):
         return
     voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
-    voice_client.pause()
+    voice_client.resume()
 
 @bot.command(name='play', aliases=['p'])
 async def play(ctx: commands.Context, *args):
