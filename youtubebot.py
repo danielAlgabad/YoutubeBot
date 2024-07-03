@@ -1,14 +1,12 @@
-import re
-import discord
-
-import yt_dlp
-import urllib
 import asyncio
-import threading
+import discord
 import os
+import re
 import shutil
 import sys
 import subprocess as sp
+import urllib
+import yt_dlp
 
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -40,8 +38,10 @@ def main():
 
 @bot.command(name='queue', aliases=['q'])
 async def queue(ctx: commands.Context, *args):
-    try: queue = queues[ctx.guild.id]['queue']
-    except KeyError: queue = None
+    try: 
+        queue = queues[ctx.guild.id]['queue']
+    except KeyError: 
+        queue = None
     if queue == None:
         await ctx.send('The bot isn\'t playing anything')
     else:
@@ -55,19 +55,24 @@ async def queue(ctx: commands.Context, *args):
 
 @bot.command(name='skip', aliases=['s'])
 async def skip(ctx: commands.Context, *args):
-    try: queue_length = len(queues[ctx.guild.id]['queue'])
-    except KeyError: queue_length = 0
+    try: 
+        queue_length = len(queues[ctx.guild.id]['queue'])
+    except KeyError: 
+        queue_length = 0
     if queue_length <= 0:
         await ctx.send('the bot isn\'t playing anything')
     if not await sense_checks(ctx):
         return
 
-    try: n_skips = int(args[0])
+    try: 
+        n_skips = int(args[0])
     except IndexError:
         n_skips = 1
     except ValueError:
-        if args[0] == 'all': n_skips = queue_length
-        else: n_skips = 1
+        if args[0] == 'all': 
+            n_skips = queue_length
+        else: 
+            n_skips = 1
     if n_skips == 1:
         message = 'skipping track'
     elif n_skips < queue_length:
@@ -82,6 +87,47 @@ async def skip(ctx: commands.Context, *args):
         queues[ctx.guild.id]['queue'].pop(0)
     voice_client.stop()
 
+@bot.command(name='stop', aliases=['st'])
+async def stop(ctx: commands.Context):
+    server_id = ctx.guild.id
+    try: 
+        queue_length = len(queues[ctx.guild.id]['queue'])
+    except KeyError: 
+        queue_length = 0
+    if queue_length <= 0:
+        await ctx.send('The bot isn\'t playing anything')
+    if not await sense_checks(ctx):
+        return
+    voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
+    queues[server_id]['queue'] = []
+    voice_client.stop()
+
+@bot.command(name='pause', aliases=['ps'])
+async def pause(ctx: commands.Context):
+    try: 
+        queue_length = len(queues[ctx.guild.id]['queue'])
+    except KeyError: 
+        queue_length = 0
+    if queue_length <= 0:
+        await ctx.send('The bot isn\'t playing anything')
+    if not await sense_checks(ctx):
+        return
+    voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
+    voice_client.pause()
+
+@bot.command(name='resume', aliases=['r'])
+async def resume(ctx: commands.Context):
+    try: 
+        queue_length = len(queues[ctx.guild.id]['queue'])
+    except KeyError: 
+        queue_length = 0
+    if queue_length <= 0:
+        await ctx.send('The bot isn\'t playing anything')
+    if not await sense_checks(ctx):
+        return
+    voice_client = get_voice_client_from_channel_id(ctx.author.voice.channel.id)
+    voice_client.pause()
+
 @bot.command(name='play', aliases=['p'])
 async def play(ctx: commands.Context, *args):
     voice_state = ctx.author.voice
@@ -91,12 +137,11 @@ async def play(ctx: commands.Context, *args):
     query = ' '.join(args)
     # this is how it's determined if the url is valid (i.e. whether to search or not) under the hood of yt-dlp
     will_need_search = not urllib.parse.urlparse(query).scheme
-
     server_id = ctx.guild.id
 
     # source address as 0.0.0.0 to force ipv4 because ipv6 breaks it for some reason
     # this is equivalent to --force-ipv4 (line 312 of https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/options.py)
-    await ctx.send(f'looking for `{query}`...')
+    await ctx.send(f'Looking for `{query}`...')
     with yt_dlp.YoutubeDL({'format': YTDL_FORMAT,
                            'source_address': '0.0.0.0',
                            'default_search': 'ytsearch',
@@ -111,11 +156,13 @@ async def play(ctx: commands.Context, *args):
         except yt_dlp.utils.DownloadError as err:
             await notify_about_failure(ctx, err)
             return
-
+        
         if 'entries' in info:
+            for entry in info["entries"]:
+                print(entry["id"], entry["title"])
             info = info['entries'][0]
         # send link if it was a search, otherwise send title as sending link again would clutter chat with previews
-        await ctx.send('downloading ' + (f'https://youtu.be/{info["id"]}' if will_need_search else f'`{info["title"]}`'))
+        await ctx.send('Downloading ' + (f'https://youtu.be/{info["id"]}' if will_need_search else f'`{info["title"]}`'))
         try:
             ydl.download([query])
         except yt_dlp.utils.DownloadError as err:
@@ -126,8 +173,10 @@ async def play(ctx: commands.Context, *args):
             queues[server_id]['queue'].append((path, info))
         except KeyError: # first in queue
             queues[server_id] = {'queue': [(path, info)], 'loop': False}
-            try: connection = await voice_state.channel.connect()
-            except discord.ClientException: connection = get_voice_client_from_channel_id(voice_state.channel.id)
+            try: 
+                connection = await voice_state.channel.connect()
+            except discord.ClientException: 
+                connection = get_voice_client_from_channel_id(voice_state.channel.id)
             connection.play(discord.FFmpegOpusAudio(path), after=lambda error=None, connection=connection, server_id=server_id:
                                                              after_track(error, connection, server_id))
 
@@ -157,12 +206,18 @@ def after_track(error, connection, server_id):
         if not queues[server_id]['loop']:
             os.remove(last_video_path)
             queues[server_id]['queue'].pop(0)
-    except KeyError: return # probably got disconnected
+    except KeyError: 
+        return # probably got disconnected
+    except IndexError:
+        return
     if last_video_path not in [i[0] for i in queues[server_id]['queue']]: # check that the same video isn't queued multiple times
-        try: os.remove(last_video_path)
-        except FileNotFoundError: pass
-    try: connection.play(discord.FFmpegOpusAudio(queues[server_id]['queue'][0][0]), after=lambda error=None, connection=connection, server_id=server_id:
-                                                                          after_track(error, connection, server_id))
+        try: 
+            os.remove(last_video_path)
+        except FileNotFoundError: 
+            pass
+    try: 
+        connection.play(discord.FFmpegOpusAudio(queues[server_id]['queue'][0][0]), after=lambda error=None, connection=connection, server_id=server_id:
+                                                                        after_track(error, connection, server_id))
     except IndexError: # that was the last item in queue
         queues.pop(server_id) # directory will be deleted on disconnect
         asyncio.run_coroutine_threadsafe(safe_disconnect(connection), bot.loop).result()
@@ -172,7 +227,8 @@ async def safe_disconnect(connection):
         await connection.disconnect()
 
 async def sense_checks(ctx: commands.Context, voice_state=None) -> bool:
-    if voice_state is None: voice_state = ctx.author.voice
+    if voice_state is None: 
+        voice_state = ctx.author.voice
     if voice_state is None:
         await ctx.send('You have to be in a voice channel to use this command')
         return False
@@ -191,10 +247,14 @@ async def on_voice_state_update(member: discord.User, before: discord.VoiceState
     if before.channel is not None and after.channel is None: # disconnected from vc
         # clean up
         server_id = before.channel.guild.id
-        try: queues.pop(server_id)
-        except KeyError: pass
-        try: shutil.rmtree(f'./dl/{server_id}/')
-        except FileNotFoundError: pass
+        try: 
+            queues.pop(server_id)
+        except KeyError: 
+            pass
+        try: 
+            shutil.rmtree(f'./dl/{server_id}/')
+        except FileNotFoundError: 
+            pass
 
 @bot.event
 async def on_command_error(ctx: discord.ext.commands.Context, err: discord.ext.commands.CommandError):
